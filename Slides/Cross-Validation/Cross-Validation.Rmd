@@ -1,0 +1,436 @@
+---
+title: "Cross Validation"
+resource_files:
+- appforthat.jpg
+output:
+  xaringan::moon_reader:
+    css: xaringan-themer.css
+    lib_dir: libs
+    nature:
+      highlightLines: yes
+      highlightStyle: github
+      countIncrementalSlides: false
+      ratio: '16:9'
+
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+library(tidyverse)
+library(tidymodels)
+library(flair)
+```
+
+```{r xaringan-themer, include=FALSE}
+library(xaringanthemer)
+library(xaringanExtra)
+style_mono_light(
+  base_color = "#26116c",
+  text_bold_color = "#fd5e53",
+  title_slide_text_color = "#fff8e7",
+  background_color = "#fff8e7",
+  header_font_google = google_font("Roboto"),
+  text_font_google   = google_font("Roboto Condensed"),
+  code_font_google   = google_font("Droid Mono")
+)
+```
+
+```{css, echo = FALSE}
+.red{ color: red; }
+.blue{ color: blue; }
+.huge {
+  font-size: 200%;
+}
+.large {
+  font-size: 150%;
+}
+.tiny {
+  font-size: 50%;
+}
+```
+
+---
+class: center, middle
+
+# Overfitting
+
+---
+# Overfitting
+
+Recall:  We are assuming that
+
+.center[.huge[
+(**output**) = .blue[f](**input**) + (noise)
+]]
+
+and we would like to estimate .blue[f].
+
+--
+
+Here's a suggestion:
+
+.huge[.center[.blue[f]( x ) := y]]
+
+for every (x,y) we observe
+
+--
+
+$$\hat{y}_i = y_i$$
+
+We win!  MSE of zero!
+
+---
+# Overfitting
+
+Recall from Assignment 1:
+
+```{r, message = FALSE}
+ins <- read_csv("https://www.dropbox.com/s/bocjjyo1ehr5auz/insurance_costs_1.csv?dl=1")
+head(ins)
+```
+
+---
+# Overfitting
+
+More flexible models fit the data better!
+
+```{r}
+lr_mod <- linear_reg() %>%
+  set_mode("regression") %>%
+  set_engine("lm")
+
+poly_mod_1 <- lr_mod %>%
+  fit(charges ~ bmi, data = ins)
+
+
+poly_mod_20 <- lr_mod %>%
+  fit(charges ~ poly(bmi, 20), data = ins)
+```
+
+```{r}
+ins <- ins %>%
+  mutate(
+    preds_1 = predict(poly_mod_1, 
+                      new_data = ins, 
+                      type = "raw"),
+    preds_20 = predict(poly_mod_20, 
+                       new_data = ins, 
+                       type = "raw")
+  )
+```
+
+
+---
+
+# Overfitting
+
+More flexible models fit the data better!
+
+```{r, echo = FALSE}
+poly_mod_1$fit %>% summary()
+```
+
+
+---
+
+# Overfitting
+
+More flexible models fit the data better!
+
+```{r, echo = FALSE}
+poly_mod_20$fit %>% summary()
+```
+
+
+---
+
+# Overfitting
+
+More flexible models fit the data better!
+
+```{r}
+ins %>% 
+  rmse(truth = charges, 
+          estimate = preds_1)
+ins %>% 
+  rmse(truth = charges, 
+          estimate = preds_20)
+```
+
+
+---
+
+# Overfitting
+
+More flexible models fit the data better!
+
+```{r, echo = FALSE}
+ins %>% 
+  ggplot() +
+  geom_point(aes(x = bmi, y = charges)) +
+  geom_line(aes(x = bmi, y = preds_20),
+            color = "red") +
+  geom_line(aes(x = bmi, y = preds_1),
+            color = "blue")
+
+```
+
+---
+
+class: center, middle, inverse
+
+# Overfitting = "unnecessarily wiggly"
+
+---
+
+# Bias and variance
+
+In this context:
+
+**bias** = how much the model is fit to the data it is **trained on**, instead of being generalizeable to *any* data
+
+--
+
+**variance** = how much *prediction error* there is on the **training data**
+
+---
+
+# Bias and variance
+
+![](https://media1.giphy.com/media/3o6Mb9T54A8sVZm8IU/source.gif)
+
+---
+
+class: center, middle, inverse
+
+# Solutions to overfitting:
+## Theoretical approaches
+
+---
+# Theoretical solutions to overfitting
+
+One idea is to come up with a *metric* that **penalizes** complexity/flexibility in the model.
+
+--
+
+Basic idea:  
+
+.center[(measure of fit) - (number of predictors)]
+
+--
+
+Examples:
+
+* **Adjusted R-squared**
+
+* **AIC** (Akaike Information Criterion)
+
+* **BIC** (Bayesian Information Criterion)
+
+* **Mallow's Cp**
+
+---
+
+# Theoretical solutions to overfitting
+
+**Pros:**
+
+* Easy to compare models quickly: only one number to compute per model.
+
+* Basis for each metric has some mathematical justification
+
+--
+
+**Cons:**
+
+* Which one is *most* justified?
+
+* What if they don't agree?  (which is common!)
+
+---
+
+class: center, middle, inverse
+
+# Solutions to overfitting:
+## Training and test splits
+
+---
+
+# Training and test data
+
+What if we randomly set aside 10% of our dataset to be our **test** data?
+
+--
+
+We **train** the model using only the remaining 90%.
+
+--
+
+Then we check the prediction accuracy on the **test** data, which the model could not possibly have *overfit*?
+
+---
+
+# Training and test data
+
+```{r}
+# Set seed, so our "randomness" is consistent
+set.seed(190498)
+
+# Establish division of data
+ins_split <- ins %>% initial_split()
+
+# Save test and training as separate datasets
+
+ins_test <- ins_split %>% testing()
+ins_train <- ins_split %>% training()
+
+# Check what happened
+
+dim(ins_test)
+dim(ins_train)
+```
+
+---
+
+# Training and test data
+
+Fit the models on the **training data only**
+
+```{r mods, include = FALSE}
+poly_mod_1 <- lr_mod %>%
+  fit(charges ~ bmi, data = ins_train)
+
+
+poly_mod_20 <- lr_mod %>%
+  fit(charges ~ poly(bmi, 20), data = ins_train)
+```
+
+```{r, echo = FALSE}
+decorate("mods") %>%
+  flair("ins_train")
+```
+
+---
+# Training and test data
+
+Find model predictions on the **test data only**
+
+```{r preds, include = FALSE}
+ins_test <- ins_test %>%
+  mutate(
+    preds_1 = predict(poly_mod_1, 
+                      new_data = ins_test, 
+                      type = "raw"),
+    preds_20 = predict(poly_mod_20, 
+                       new_data = ins_test, 
+                       type = "raw")
+  )
+```
+
+```{r, echo = FALSE}
+decorate("preds") %>%
+  flair("ins_test")
+```
+
+---
+# Training and test data
+
+Check model metrics on the **test data only**
+
+
+```{r metrics, include = FALSE}
+ins_test %>% 
+  rmse(truth = charges, 
+          estimate = preds_1)
+
+ins_test %>% 
+  rmse(truth = charges, 
+          estimate = preds_20)
+```
+
+```{r, echo = FALSE}
+decorate("metrics") %>%
+  flair("ins_test")
+```
+
+---
+
+class: center, middle, inverse
+
+# **YOUR TURN**
+## Open "Activity-Test-Training.Rmd" (or equivalent)
+
+---
+
+class: center, middle, inverse
+
+# Cross-Validation
+
+---
+
+# Cross-Validation
+
+If the *test/training* split helps us measure model success...
+
+--
+
+... but it's random, so it's not the same every time...
+
+--
+
+... why not do it a bunch of times?
+
+---
+
+# k-fold Cross-Validation
+
+![](k_fold.png)
+
+---
+
+# k-fold Cross-Validation
+
+Make the folds:
+
+```{r}
+ins_cvs <- vfold_cv(ins, v = 10)
+
+ins_cvs
+```
+
+---
+# k-fold Cross-Validation
+
+Fit the model on each fold:
+
+```{r}
+poly_1_cv <- lr_mod %>%
+  fit_resamples(charges ~ bmi,
+                resamples = ins_cvs)
+
+poly_2_cv <- lr_mod %>%
+  fit_resamples(charges ~ poly(bmi, 2),
+                resamples = ins_cvs)
+```
+
+---
+
+# k-fold Cross-Validation
+
+Find the **average** rmse across **all 10 splits**:
+
+```{r}
+poly_1_cv %>% collect_metrics()
+
+poly_2_cv %>% collect_metrics()
+```
+
+---
+
+class: center, middle, inverse
+
+# YOUR TURN
+## Open "Activity-CV.Rmd" or equivalent
+
+
+

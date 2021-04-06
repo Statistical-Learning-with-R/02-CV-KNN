@@ -1,0 +1,222 @@
+---
+title: "Test and Training Data"
+author: "YOUR NAME HERE"
+output: html_document
+---
+
+```{r, version = "none"}
+templar::versions_multilingual(to_jupyter = TRUE)
+```
+
+
+```{r, include = FALSE}
+library(tidyverse)
+library(tidymodels)
+```
+
+```{r, include = FALSE, version = "python"}
+library(reticulate)
+## You may need the code below if you are working on your home Windows computer:
+py_run_string("import os as os")
+py_run_string("os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = 'C:/Users/kbodwin/Anaconda3/Library/plugins/platforms'")
+```
+
+```{python, include = FALSE}
+import pandas as pd
+import numpy as np
+from matplotlib import pyplot as plt
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LinearRegression
+```
+
+## Code from slides
+
+```{r, message = FALSE}
+ins <- read_csv("https://www.dropbox.com/s/bocjjyo1ehr5auz/insurance_costs_1.csv?dl=1")
+head(ins)
+```
+
+```{python}
+ins = pd.read_csv("https://www.dropbox.com/s/bocjjyo1ehr5auz/insurance_costs_1.csv?dl=1")
+ins.head()
+```
+
+```{r}
+lr_mod <- linear_reg() %>%
+  set_mode("regression") %>%
+  set_engine("lm")
+
+poly_mod_1 <- lr_mod %>%
+  fit(charges ~ bmi, data = ins)
+
+
+poly_mod_20 <- lr_mod %>%
+  fit(charges ~ poly(bmi, 20), data = ins)
+```
+
+```{python}
+poly_mod_1 = np.polyfit(x = ins["bmi"], y = ins[["charges"]], deg = 1)
+poly_mod_20 = np.polyfit(x = ins["bmi"], y = ins[["charges"]], deg = 20)
+```
+
+```{r}
+ins <- ins %>%
+  mutate(
+    preds_1 = predict(poly_mod_1, 
+                      new_data = ins, 
+                      type = "raw"),
+    preds_20 = predict(poly_mod_20, 
+                       new_data = ins, 
+                       type = "raw")
+  )
+```
+
+```{python}
+ins['preds_1'] = np.polyval(poly_mod_1, x = ins["bmi"])
+ins['preds_20'] = np.polyval(poly_mod_20, x = ins["bmi"])
+```
+
+
+```{r}
+poly_mod_1$fit %>% summary()
+poly_mod_20$fit %>% summary()
+```
+
+```{python}
+print(poly_mod_1)
+print(poly_mod_20)
+```
+
+
+```{r}
+ins %>% 
+  rmse(truth = charges, 
+          estimate = preds_1)
+ins %>% 
+  rmse(truth = charges, 
+          estimate = preds_20)
+```
+
+```{python}
+absError = ins['preds_1'] - ins['charges']
+SE = np.square(absError) # squared errors
+MSE = np.mean(SE) # mean squared errors
+np.sqrt(MSE) # Root Mean Squared Error, RMSE
+
+
+absError = ins['preds_20'] - ins['charges']
+SE = np.square(absError) # squared errors
+MSE = np.mean(SE) # mean squared errors
+np.sqrt(MSE)
+```
+
+
+```{r, echo = FALSE}
+ins %>% 
+  ggplot() +
+  geom_point(aes(x = bmi, y = charges)) +
+  geom_line(aes(x = bmi, y = preds_20),
+            color = "red") +
+  geom_line(aes(x = bmi, y = preds_1),
+            color = "blue")
+
+```
+
+
+```{r}
+# Set seed, so our "randomness" is consistent
+set.seed(190498)
+
+# Establish division of data
+ins_split <- ins %>% initial_split()
+
+# Save test and training as separate datasets
+
+ins_test <- ins_split %>% testing()
+ins_train <- ins_split %>% training()
+
+# Check what happened
+
+dim(ins_test)
+dim(ins_train)
+```
+
+```{python}
+import random
+random.seed(190498)
+
+from sklearn.model_selection import train_test_split
+x_train, x_test, y_train, y_test = train_test_split(ins['bmi'], ins['charges'])
+```
+
+
+```{r}
+poly_mod_1 <- lr_mod %>%
+  fit(charges ~ bmi, data = ins_train)
+
+
+poly_mod_20 <- lr_mod %>%
+  fit(charges ~ poly(bmi, 20), data = ins_train)
+
+ins_test <- ins_test %>%
+  mutate(
+    preds_1 = predict(poly_mod_1, 
+                      new_data = ins_test, 
+                      type = "raw"),
+    preds_20 = predict(poly_mod_20, 
+                       new_data = ins_test, 
+                       type = "raw")
+  )
+```
+
+```{python}
+poly_mod_1 = np.polyfit(x = x_train, y = y_train, deg = 1)
+poly_mod_20 = np.polyfit(x = x_train, y = y_train, deg = 20)
+
+test_preds_1 = np.polyval(poly_mod_1, x = x_test)
+test_preds_20 = np.polyval(poly_mod_20, x = x_test)
+```
+
+
+```{r}
+ins_test %>% 
+  rmse(truth = charges, 
+          estimate = preds_1)
+
+ins_test %>% 
+  rmse(truth = charges, 
+          estimate = preds_20)
+```
+
+```{python}
+absError = test_preds_1 - y_test
+SE = np.square(absError) # squared errors
+MSE = np.mean(SE) # mean squared errors
+np.sqrt(MSE) # Root Mean Squared Error, RMSE
+
+
+absError = test_preds_20 - y_test
+SE = np.square(absError) # squared errors
+MSE = np.mean(SE) # mean squared errors
+np.sqrt(MSE)
+```
+
+## Your turn
+
+Suppose you want to fit a regression that predicts `charges` from `age` and `bmi`.
+
+Consider four models:
+
+* `age` and `bmi` both have polynomial 1
+* `age` has polynomial 1, `bmi` has polynomial 2
+* `age` has polynomial 2, `bmi` has polynomial 1
+* `age` and `bmi` both have polynomial 2
+
+
+(No interactions term for any model.)
+
+
+Which model is best according to the **adjusted R-squared** on the training data?
+
+Which model is best according to the **MSE** of the **test** data?
+

@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Cross Validation</title>
+    <meta charset="utf-8" />
+    <script src="libs/header-attrs/header-attrs.js"></script>
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Cross Validation
+
+---
+
+
+
+
+
+
+&lt;style type="text/css"&gt;
+.red{ color: red; }
+.blue{ color: blue; }
+.huge {
+  font-size: 200%;
+}
+.large {
+  font-size: 150%;
+}
+.tiny {
+  font-size: 50%;
+}
+&lt;/style&gt;
+
+---
+class: center, middle
+
+# Overfitting
+
+---
+# Overfitting
+
+Recall:  We are assuming that
+
+.center[.huge[
+(**output**) = .blue[f](**input**) + (noise)
+]]
+
+and we would like to estimate .blue[f].
+
+--
+
+Here's a suggestion:
+
+.huge[.center[.blue[f]( x ) := y]]
+
+for every (x,y) we observe
+
+--
+
+`$$\hat{y}_i = y_i$$`
+
+We win!  MSE of zero!
+
+---
+# Overfitting
+
+Recall from Assignment 1:
+
+
+```r
+ins &lt;- read_csv("https://www.dropbox.com/s/bocjjyo1ehr5auz/insurance_costs_1.csv?dl=1")
+head(ins)
+```
+
+```
+## # A tibble: 6 x 6
+##     age sex      bmi smoker region    charges
+##   &lt;dbl&gt; &lt;chr&gt;  &lt;dbl&gt; &lt;chr&gt;  &lt;chr&gt;       &lt;dbl&gt;
+## 1    19 female  27.9 yes    southwest  16885.
+## 2    33 male    22.7 no     northwest  21984.
+## 3    32 male    28.9 no     northwest   3867.
+## 4    31 female  25.7 no     southeast   3757.
+## 5    60 female  25.8 no     northwest  28923.
+## 6    25 male    26.2 no     northeast   2721.
+```
+
+---
+# Overfitting
+
+More flexible models fit the data better!
+
+
+```r
+lr_mod &lt;- linear_reg() %&gt;%
+  set_mode("regression") %&gt;%
+  set_engine("lm")
+
+poly_mod_1 &lt;- lr_mod %&gt;%
+  fit(charges ~ bmi, data = ins)
+
+
+poly_mod_20 &lt;- lr_mod %&gt;%
+  fit(charges ~ poly(bmi, 20), data = ins)
+```
+
+
+```r
+ins &lt;- ins %&gt;%
+  mutate(
+    preds_1 = predict(poly_mod_1, 
+                      new_data = ins, 
+                      type = "raw"),
+    preds_20 = predict(poly_mod_20, 
+                       new_data = ins, 
+                       type = "raw")
+  )
+```
+
+
+---
+
+# Overfitting
+
+More flexible models fit the data better!
+
+
+```
+## 
+## Call:
+## stats::lm(formula = charges ~ bmi, data = data)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+## -15452  -8361  -2971   4605  41164 
+## 
+## Coefficients:
+##             Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)  1476.85    2894.60   0.510 0.610166    
+## bmi           351.66      92.28   3.811 0.000159 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 11690 on 429 degrees of freedom
+## Multiple R-squared:  0.03275,	Adjusted R-squared:  0.03049 
+## F-statistic: 14.52 on 1 and 429 DF,  p-value: 0.0001587
+```
+
+
+---
+
+# Overfitting
+
+More flexible models fit the data better!
+
+
+```
+## 
+## Call:
+## stats::lm(formula = charges ~ poly(bmi, 20), data = data)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+## -16401  -8206  -2636   4114  41743 
+## 
+## Coefficients:
+##                 Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)      12297.1      560.1  21.955  &lt; 2e-16 ***
+## poly(bmi, 20)1   44565.4    11628.3   3.832 0.000147 ***
+## poly(bmi, 20)2   -7612.9    11628.3  -0.655 0.513035    
+## poly(bmi, 20)3    1448.5    11628.3   0.125 0.900930    
+## poly(bmi, 20)4    7823.3    11628.3   0.673 0.501464    
+## poly(bmi, 20)5    7346.4    11628.3   0.632 0.527892    
+## poly(bmi, 20)6  -18995.8    11628.3  -1.634 0.103115    
+## poly(bmi, 20)7  -18479.1    11628.3  -1.589 0.112798    
+## poly(bmi, 20)8  -15573.9    11628.3  -1.339 0.181211    
+## poly(bmi, 20)9   -9784.8    11628.3  -0.841 0.400579    
+## poly(bmi, 20)10 -13239.3    11628.3  -1.139 0.255559    
+## poly(bmi, 20)11  -6672.8    11628.3  -0.574 0.566392    
+## poly(bmi, 20)12   3834.7    11628.3   0.330 0.741739    
+## poly(bmi, 20)13 -20343.0    11628.3  -1.749 0.080964 .  
+## poly(bmi, 20)14   -399.4    11628.3  -0.034 0.972618    
+## poly(bmi, 20)15  -3875.1    11628.3  -0.333 0.739120    
+## poly(bmi, 20)16  14797.6    11628.3   1.273 0.203899    
+## poly(bmi, 20)17  32481.0    11628.3   2.793 0.005462 ** 
+## poly(bmi, 20)18    898.8    11628.3   0.077 0.938426    
+## poly(bmi, 20)19   6484.3    11628.3   0.558 0.577399    
+## poly(bmi, 20)20   5548.2    11628.3   0.477 0.633526    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 11630 on 410 degrees of freedom
+## Multiple R-squared:  0.08595,	Adjusted R-squared:  0.04136 
+## F-statistic: 1.928 on 20 and 410 DF,  p-value: 0.00978
+```
+
+
+---
+
+# Overfitting
+
+More flexible models fit the data better!
+
+
+```r
+ins %&gt;% 
+  rmse(truth = charges, 
+          estimate = preds_1)
+```
+
+```
+## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 rmse    standard      11667.
+```
+
+```r
+ins %&gt;% 
+  rmse(truth = charges, 
+          estimate = preds_20)
+```
+
+```
+## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 rmse    standard      11341.
+```
+
+
+---
+
+# Overfitting
+
+More flexible models fit the data better!
+
+![](Cross-Validation_files/figure-html/unnamed-chunk-8-1.png)&lt;!-- --&gt;
+
+---
+
+class: center, middle, inverse
+
+# Overfitting = "unnecessarily wiggly"
+
+---
+
+# Bias and variance
+
+In this context:
+
+**bias** = how much the model is fit to the data it is **trained on**, instead of being generalizeable to *any* data
+
+--
+
+**variance** = how much *prediction error* there is on the **training data**
+
+---
+
+# Bias and variance
+
+![](https://media1.giphy.com/media/3o6Mb9T54A8sVZm8IU/source.gif)
+
+---
+
+class: center, middle, inverse
+
+# Solutions to overfitting:
+## Theoretical approaches
+
+---
+# Theoretical solutions to overfitting
+
+One idea is to come up with a *metric* that **penalizes** complexity/flexibility in the model.
+
+--
+
+Basic idea:  
+
+.center[(measure of fit) - (number of predictors)]
+
+--
+
+Examples:
+
+* **Adjusted R-squared**
+
+* **AIC** (Akaike Information Criterion)
+
+* **BIC** (Bayesian Information Criterion)
+
+* **Mallow's Cp**
+
+---
+
+# Theoretical solutions to overfitting
+
+**Pros:**
+
+* Easy to compare models quickly: only one number to compute per model.
+
+* Basis for each metric has some mathematical justification
+
+--
+
+**Cons:**
+
+* Which one is *most* justified?
+
+* What if they don't agree?  (which is common!)
+
+---
+
+class: center, middle, inverse
+
+# Solutions to overfitting:
+## Training and test splits
+
+---
+
+# Training and test data
+
+What if we randomly set aside 10% of our dataset to be our **test** data?
+
+--
+
+We **train** the model using only the remaining 90%.
+
+--
+
+Then we check the prediction accuracy on the **test** data, which the model could not possibly have *overfit*?
+
+---
+
+# Training and test data
+
+
+```r
+# Set seed, so our "randomness" is consistent
+set.seed(190498)
+
+# Establish division of data
+ins_split &lt;- ins %&gt;% initial_split()
+
+# Save test and training as separate datasets
+
+ins_test &lt;- ins_split %&gt;% testing()
+ins_train &lt;- ins_split %&gt;% training()
+
+# Check what happened
+
+dim(ins_test)
+```
+
+```
+## [1] 107   8
+```
+
+```r
+dim(ins_train)
+```
+
+```
+## [1] 324   8
+```
+
+---
+
+# Training and test data
+
+Fit the models on the **training data only**
+
+
+
+
+&lt;code class ='r hljs remark-code'&gt;poly_mod_1 &lt;- lr_mod %&gt;%&lt;br&gt;&amp;nbsp;&amp;nbsp;fit(charges ~ bmi, data = &lt;span style="background-color:#ffff7f"&gt;ins_train&lt;/span&gt;)&lt;br&gt;&lt;br&gt;&lt;br&gt;poly_mod_20 &lt;- lr_mod %&gt;%&lt;br&gt;&amp;nbsp;&amp;nbsp;fit(charges ~ poly(bmi, 20), data = &lt;span style="background-color:#ffff7f"&gt;ins_train&lt;/span&gt;)&lt;/code&gt;
+
+---
+# Training and test data
+
+Find model predictions on the **test data only**
+
+
+
+
+&lt;code class ='r hljs remark-code'&gt;&lt;span style="background-color:#ffff7f"&gt;ins_test&lt;/span&gt; &lt;- &lt;span style="background-color:#ffff7f"&gt;ins_test&lt;/span&gt; %&gt;%&lt;br&gt;&amp;nbsp;&amp;nbsp;mutate(&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;preds_1 = predict(poly_mod_1, &lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;new_data = &lt;span style="background-color:#ffff7f"&gt;ins_test&lt;/span&gt;, &lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;type = "raw"),&lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;preds_20 = predict(poly_mod_20, &lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;new_data = &lt;span style="background-color:#ffff7f"&gt;ins_test&lt;/span&gt;, &lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;type = "raw")&lt;br&gt;&amp;nbsp;&amp;nbsp;)&lt;/code&gt;
+
+---
+# Training and test data
+
+Check model metrics on the **test data only**
+
+
+
+
+
+&lt;code class ='r hljs remark-code'&gt;&lt;span style="background-color:#ffff7f"&gt;ins_test&lt;/span&gt; %&gt;% &lt;br&gt;&amp;nbsp;&amp;nbsp;rmse(truth = charges, &lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;estimate = preds_1)&lt;/code&gt;
+
+```
+
+## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 rmse    standard      11078.
+
+```
+
+
+
+&lt;code class ='r hljs remark-code'&gt;&lt;span style="background-color:#ffff7f"&gt;ins_test&lt;/span&gt; %&gt;% &lt;br&gt;&amp;nbsp;&amp;nbsp;rmse(truth = charges, &lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;estimate = preds_20)&lt;/code&gt;
+
+```
+
+## # A tibble: 1 x 3
+##   .metric .estimator .estimate
+##   &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt;
+## 1 rmse    standard   42212317.
+
+```
+
+---
+
+class: center, middle, inverse
+
+# **YOUR TURN**
+## Open "Activity-Test-Training.Rmd" (or equivalent)
+
+---
+
+class: center, middle, inverse
+
+# Cross-Validation
+
+---
+
+# Cross-Validation
+
+If the *test/training* split helps us measure model success...
+
+--
+
+... but it's random, so it's not the same every time...
+
+--
+
+... why not do it a bunch of times?
+
+---
+
+# k-fold Cross-Validation
+
+![](k_fold.png)
+
+---
+
+# k-fold Cross-Validation
+
+Make the folds:
+
+
+```r
+ins_cvs &lt;- vfold_cv(ins, v = 10)
+
+ins_cvs
+```
+
+```
+## #  10-fold cross-validation 
+## # A tibble: 10 x 2
+##    splits            id    
+##    &lt;list&gt;            &lt;chr&gt; 
+##  1 &lt;rsplit [387/44]&gt; Fold01
+##  2 &lt;rsplit [388/43]&gt; Fold02
+##  3 &lt;rsplit [388/43]&gt; Fold03
+##  4 &lt;rsplit [388/43]&gt; Fold04
+##  5 &lt;rsplit [388/43]&gt; Fold05
+##  6 &lt;rsplit [388/43]&gt; Fold06
+##  7 &lt;rsplit [388/43]&gt; Fold07
+##  8 &lt;rsplit [388/43]&gt; Fold08
+##  9 &lt;rsplit [388/43]&gt; Fold09
+## 10 &lt;rsplit [388/43]&gt; Fold10
+```
+
+---
+# k-fold Cross-Validation
+
+Fit the model on each fold:
+
+
+```r
+poly_1_cv &lt;- lr_mod %&gt;%
+  fit_resamples(charges ~ bmi,
+                resamples = ins_cvs)
+
+poly_2_cv &lt;- lr_mod %&gt;%
+  fit_resamples(charges ~ poly(bmi, 2),
+                resamples = ins_cvs)
+```
+
+---
+
+# k-fold Cross-Validation
+
+Find the **average** rmse across **all 10 splits**:
+
+
+```r
+poly_1_cv %&gt;% collect_metrics()
+```
+
+```
+## # A tibble: 2 x 5
+##   .metric .estimator       mean     n  std_err
+##   &lt;chr&gt;   &lt;chr&gt;           &lt;dbl&gt; &lt;int&gt;    &lt;dbl&gt;
+## 1 rmse    standard   11554.        10 662.    
+## 2 rsq     standard       0.0447    10   0.0155
+```
+
+```r
+poly_2_cv %&gt;% collect_metrics()
+```
+
+```
+## # A tibble: 2 x 5
+##   .metric .estimator       mean     n  std_err
+##   &lt;chr&gt;   &lt;chr&gt;           &lt;dbl&gt; &lt;int&gt;    &lt;dbl&gt;
+## 1 rmse    standard   11580.        10 647.    
+## 2 rsq     standard       0.0424    10   0.0145
+```
+
+---
+
+class: center, middle, inverse
+
+# YOUR TURN
+## Open "Activity-CV.Rmd" or equivalent
+
+
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightLines": true,
+"highlightStyle": "github",
+"countIncrementalSlides": false,
+"ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
