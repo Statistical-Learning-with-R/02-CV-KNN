@@ -23,6 +23,8 @@ head(ins)
 
 ## Activity Break 1: KNN modeling
 
+#### Code from lecture
+
 Establish our model:
 
 ```{r}
@@ -39,6 +41,18 @@ knn_fit_1 <- knn_mod %>%
 
 knn_fit_1$fit %>% summary()
 ```
+
+#### Your task:
+
+Use cross validation to choose between a KNN model with 5 neighbors that uses only age versus one that uses both age and bmi.
+
+How do these models compare to the least-squares regression approach from Tuesday?
+
+How do these models compare to a KNN model with 10 neighbors?
+
+## Activity Break 2:  Normalizing variables
+
+#### Code from lecture
 
 Recipe:
 
@@ -59,8 +73,6 @@ ins_fit <- ins_wflow %>% fit(ins)
 
 ins_fit %>% pull_workflow_fit()
 ```
-
-## Activity Break 2:  Normalizing variables
 
 Normalize workflow:
 
@@ -84,7 +96,14 @@ ins_fit <- ins_wflow %>% fit(ins)
 ins_fit %>% pull_workflow_fit()
 ```
 
+#### Your task: 
+
+Make a KNN model with K = 5, using age, bmi, smoker, and sex
+Compare the model with non-normalized variables to one with normalized variables. Which is better?
+
 ## Activity Break 3:  Tuning
+
+#### Code from lecture
 
 Tuning:
 
@@ -138,13 +157,7 @@ knn_grid_search %>%
   slice_min(mean)
 ```
 
----
+#### Your task:  
 
-class: center, middle, inverse
-
-# Try it!
-
-## Open `Activity-KNN-r.Rmd` again
-## Decide on a best final KNN model to predict insurance charges
-## Plot the residuals from this model
+Find the best KNN model
 
