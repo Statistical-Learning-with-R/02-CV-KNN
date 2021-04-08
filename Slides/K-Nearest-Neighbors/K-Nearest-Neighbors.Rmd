@@ -1,0 +1,566 @@
+---
+title: "K Nearest Neighbors Regression"
+resource_files:
+- appforthat.jpg
+output:
+  xaringan::moon_reader:
+    css: xaringan-themer.css
+    lib_dir: libs
+    nature:
+      highlightLines: yes
+      highlightStyle: github
+      countIncrementalSlides: false
+      ratio: '16:9'
+
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+library(tidyverse)
+library(tidymodels)
+library(flair)
+library(kknn)
+```
+
+```{r xaringan-themer, include=FALSE}
+library(xaringanthemer)
+library(xaringanExtra)
+style_mono_light(
+  base_color = "#26116c",
+  text_bold_color = "#fd5e53",
+  title_slide_text_color = "#fff8e7",
+  background_color = "#fff8e7",
+  header_font_google = google_font("Roboto"),
+  text_font_google   = google_font("Roboto Condensed"),
+  code_font_google   = google_font("Droid Mono")
+)
+```
+
+```{css, echo = FALSE}
+.red{ color: red; }
+.blue{ color: blue; }
+.huge {
+  font-size: 200%;
+}
+.large {
+  font-size: 150%;
+}
+.tiny {
+  font-size: 50%;
+}
+```
+
+---
+class: center, middle
+
+# The K Nearest Neighbors Model
+
+---
+# KNN
+
+We have existing observations
+
+$$(x_1, y_1), ... (x_n, y_n)$$
+
+--
+
+Given a new observation $x_{new}$, how do we predict $y_{new}$?
+
+--
+
+1.  Find the 5 values in $(x_1, ..., x_n)$ that are closest to $x_{new}$
+
+--
+
+2.  Take the average of the corresponding $y_i$'s to our five closest $x_i$'s.
+
+--
+
+3. Predict $\hat{y}_{new}$ = average of these 5 $y_i$'s
+
+---
+# KNN
+
+
+To perform **K-Nearest-Neighbors**, we choose the **K** closest observations to our *target*, and we average their *response* values.
+
+--
+
+.large[The Big Questions:]
+
+* What is our definition of **closest**?
+
+* What number should we use for **K**?
+
+---
+# KNN
+
+*K Nearest Neighbors* is a **non-parametric** method.
+
+--
+
+* We aren't assuming anything about how our observations are **generated** or **distributed**.
+
+* (We don't even assume that the sample of observations is **random**!)
+
+--
+
+* We don't impose any **structure** on our function .blue[f]
+
+* Least-squares regression:  .blue[f] = $\beta_0 + \beta X + \epsilon$ for *any* X.
+
+* KNN: .blue[f] = average of 5 closest $x_i$'s *that we observed*
+
+---
+# KNN
+
+Recall:  
+
+* **regression** is when we are trying to predict a **numeric** response
+
+* **classification** is when we are trying to predict a **categorical** response
+
+--
+
+*K Nearest Neighbors* can be used for both!
+
+(but we'll focus on regression for now)
+
+---
+class: center, middle, inverse
+
+
+## Example
+
+---
+
+# Example
+
+Recall from Assignment 1:
+
+```{r, message = FALSE}
+ins <- read_csv("https://www.dropbox.com/s/bocjjyo1ehr5auz/insurance.csv?dl=1")
+head(ins)
+```
+
+---
+# Example
+
+Establish our model:
+
+```{r}
+knn_mod <- nearest_neighbor(neighbors = 5) %>%
+  set_engine("kknn") %>%
+  set_mode("regression")
+```
+
+--
+
+Notice:
+
+* New *engine* - just take it from here: https://www.tidymodels.org/find/parsnip/.  
+
+(You will have to `install.packages("knn")` if you are on your home computer.)
+
+--
+
+* *mode* now matters a lot - "classification" would be possible too!
+
+--
+
+* New *model function* `nearest_neighbor`, which requires an **input**, `neighbors`
+
+---
+# Example
+
+Fit our model:
+
+```{r}
+knn_fit_1 <- knn_mod %>%
+  fit(charges ~ age, data = ins)
+
+knn_fit_1$fit %>% summary()
+```
+
+---
+
+class: center, middle, inverse
+
+# Choosing **K**
+
+---
+# Check your intuition:
+
+1.  What happens if we use **K = 1**?
+
+--
+
+*Not necessarily bad, but we could be thrown off by weird outlier observations!*
+
+--
+
+2. What happens if we use **K = (number of observations)**
+
+--
+
+*We predict the same y-value no matter what!*
+
+---
+class: center, middle, inverse
+
+# Try it!
+
+## Open **Activity-KNN-r.Rmd** or equivalent
+#### Use cross validation to choose between a KNN model with 5 neighbors that uses only *age* versus one that uses both *age* and *bmi*.
+#### How do these models compare to the *least-squares regression* approach from Tuesday?
+#### How do these models compare to a KNN model with 10 neighbors?
+
+---
+class: center, middle, inverse
+
+# Dummy variables
+
+---
+# Dummy variables
+
+Suppose we now want to include `region` in our KNN model.
+
+--
+
+
+```{r, error = TRUE}
+knn_fit_2 <- knn_mod %>%
+  fit(charges ~ age + smoker, data = ins)
+```
+
+---
+# Dummy variables
+
+We can't calculate a **distance** between **categories**!
+
+--
+
+Instead, we make **dummy variables**:
+
+* `southwest` = 1 if southwest, 0 if not
+* `northwest` = 1 if northwest, 0 if not
+* ... etc
+
+--
+
+Now these are (sort of) **numeric** variables.
+
+---
+# Recipes
+
+Instead of manually changing the whole dataset, we can "teach" our model workflow what it needs to do to the data.
+
+--
+
+```{r}
+ins_rec <- recipe(charges ~ age + region, data = ins) %>%
+  step_dummy(region)
+
+ins_rec
+```
+
+---
+# Workflows
+
+Now, we can combine our **recipe** (data processing instructions) and our **model choice** into a **workflow**:
+
+--
+
+```{r}
+ins_wflow <- workflow() %>%
+  add_recipe(ins_rec) %>%
+  add_model(knn_mod)
+
+ins_wflow
+```
+
+---
+# Workflow
+
+```{r}
+ins_fit <- ins_wflow %>% fit(ins) 
+
+ins_fit %>% pull_workflow_fit()
+```
+
+---
+# Compare
+
+```{r}
+knn_fit_1$fit %>% summary()
+```
+
+---
+class: center, middle
+
+## Think about it:
+
+### We didn't get much benefit from adding *region*.
+### But *region* **does** matter to the response variable!
+### Why?
+
+---
+class: center, middle, inverse
+
+# Standardizing
+
+---
+# Standardizing
+
+* What is the **largest** and **smallest** value of a *dummy variable*?
+
+--
+
+* What is the **largest** and **smallest** value of *age*?
+
+--
+
+```{r}
+summary(ins$age)
+```
+---
+# Standardizing
+
+* What is the distance between:
+
+    + Person A:  20 years old, from the southwest
+    + Person B:  20 years old, from the northeast
+    
+--
+
+$$ \sqrt{ (20-20)^2 + (1-0)^2 + (1-0)^2 } = 1.41 $$
+
+--
+
+* What is the distance between:
+
+    + Person A: 20 years old, from the southwest
+    + Person B: 23 years old, from the southwest
+    
+--
+
+$$ \sqrt{ (20-23)^2 + (0-0)^2 + (0-0)^2 } = 3 $$
+---
+# Normalizing
+
+Let's put `age` on a scale that is comparable to the dummy variables.
+
+--
+
+How about: mean of 0, standard deviation of 1
+
+(i.e., a z-score)
+
+--
+
+This is called **normalizing** a variable.
+
+---
+# Normalizing
+
+Add it to the workflow!
+
+```{r}
+ins_rec <- recipe(charges ~ age + region, data = ins) %>%
+  step_dummy(region) %>%
+  step_normalize(age)
+
+ins_wflow <- workflow() %>%
+  add_recipe(ins_rec) %>%
+  add_model(knn_mod)
+
+ins_wflow
+```
+
+---
+# Normalizing
+
+
+```{r}
+ins_fit <- ins_wflow %>% fit(ins) 
+
+ins_fit %>% pull_workflow_fit()
+```
+
+---
+class: center, middle, inverse
+
+# Try it!
+
+## Open *Activity-KNN-r.Rmd* again
+## Make a KNN model with K = 5, using *age*, *bmi*, *smoker*, and *sex*
+## Compare the model with non-normalized variables to one with normalized variables.  Which is better?
+
+---
+class: center, middle, inverse
+
+# Tuning
+
+## How do we choose K?
+
+---
+
+# Tuning
+
+**K** is what is called a **tuning parameter**.
+
+--
+
+This is a feature of a model that we have to chose *before* fitting the model.
+
+--
+
+Ideally, we'd try many values of the **tuning parameter** and find the best one.
+
+---
+
+![](https://media0.giphy.com/media/SvL7LA1cCAW9ximYN4/giphy.gif)
+
+---
+
+![](https://media0.giphy.com/media/l2YWwkJJj5wkh4P5e/giphy.gif)
+
+---
+# Automatic tuning
+
+```{r knnmod, include = FALSE}
+knn_mod <- nearest_neighbor(neighbors = tune()) %>%
+  set_engine("kknn") %>%
+  set_mode("regression")
+
+k_grid <- grid_regular(neighbors())
+
+k_grid
+```
+
+```{r, echo = FALSE}
+decorate("knnmod") %>%
+  flair("tune()") %>%
+  flair("neighbors", background = "pink")
+```
+
+---
+# Automatic tuning
+
+```{r knnmod2, include = FALSE}
+knn_mod_tune <- nearest_neighbor(neighbors = tune()) %>%
+  set_engine("kknn") %>%
+  set_mode("regression")
+
+k_grid <- grid_regular(neighbors(c(1,50)), 
+                       levels = 25)
+
+k_grid
+```
+
+```{r, echo = FALSE}
+decorate("knnmod2") %>%
+  flair("tune()") %>%
+  flair("neighbors", background = "pink")
+```
+
+---
+# Tuning
+
+```{r}
+ins_rec <- recipe(charges ~ age + bmi + sex + smoker, data = ins) %>%
+  step_dummy(all_nominal()) %>%
+  step_normalize(all_numeric())
+
+ins_wflow <- workflow() %>%
+  add_recipe(ins_rec) %>%
+  add_model(knn_mod_tune)
+```
+
+
+```{r}
+ins_cv <- vfold_cv(ins, v = 10)
+
+
+knn_grid_search <-
+  tune_grid(
+    ins_wflow,
+    resamples = ins_cv,
+    grid = k_grid
+  )
+```
+
+---
+# Tuning
+
+
+```{r}
+knn_grid_search
+```
+
+---
+# Tuning
+
+```{r}
+knn_grid_search %>% collect_metrics()
+```
+
+---
+# Tuning
+
+```{r, echo = FALSE}
+knn_grid_search %>% 
+  collect_metrics() %>%
+  ggplot(aes(x = neighbors, y = mean, color = .metric)) +
+  geom_line()
+```
+
+---
+#Tuning
+
+What if we had only looked at k from 1 to 10?
+
+```{r, echo = FALSE}
+knn_grid_search %>% 
+  collect_metrics() %>%
+  filter(.metric == "rmse") %>%
+  filter(neighbors < 10) %>%
+  ggplot(aes(x = neighbors, y = mean, color = .metric)) +
+  geom_line()
+```
+
+---
+#Tuning
+
+What if we had only looked at k from 20 to 50?
+
+```{r, echo = FALSE}
+knn_grid_search %>% 
+  collect_metrics() %>%
+  filter(.metric == "rmse") %>%
+  filter(neighbors > 20) %>%
+  ggplot(aes(x = neighbors, y = mean, color = .metric)) +
+  geom_line()
+```
+
+
+---
+# Tuning
+
+```{r}
+knn_grid_search %>% 
+  collect_metrics() %>%
+  filter(.metric == "rmse") %>%
+  slice_min(mean)
+```
+
+---
+
+class: center, middle, inverse
+
+# Try it!
+
+## Open *Activity-KNN-r.Rmd* again
+## Decide on a best final KNN model to predict insurance charges
+## Plot the residuals from this model
+

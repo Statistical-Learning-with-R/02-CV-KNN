@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>K Nearest Neighbors Regression</title>
+    <meta charset="utf-8" />
+    <script src="libs/header-attrs/header-attrs.js"></script>
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# K Nearest Neighbors Regression
+
+---
+
+
+
+
+
+
+&lt;style type="text/css"&gt;
+.red{ color: red; }
+.blue{ color: blue; }
+.huge {
+  font-size: 200%;
+}
+.large {
+  font-size: 150%;
+}
+.tiny {
+  font-size: 50%;
+}
+&lt;/style&gt;
+
+---
+class: center, middle
+
+# The K Nearest Neighbors Model
+
+---
+# KNN
+
+We have existing observations
+
+`$$(x_1, y_1), ... (x_n, y_n)$$`
+
+--
+
+Given a new observation `\(x_{new}\)`, how do we predict `\(y_{new}\)`?
+
+--
+
+1.  Find the 5 values in `\((x_1, ..., x_n)\)` that are closest to `\(x_{new}\)`
+
+--
+
+2.  Take the average of the corresponding `\(y_i\)`'s to our five closest `\(x_i\)`'s.
+
+--
+
+3. Predict `\(\hat{y}_{new}\)` = average of these 5 `\(y_i\)`'s
+
+---
+# KNN
+
+
+To perform **K-Nearest-Neighbors**, we choose the **K** closest observations to our *target*, and we average their *response* values.
+
+--
+
+.large[The Big Questions:]
+
+* What is our definition of **closest**?
+
+* What number should we use for **K**?
+
+---
+# KNN
+
+*K Nearest Neighbors* is a **non-parametric** method.
+
+--
+
+* We aren't assuming anything about how our observations are **generated** or **distributed**.
+
+* (We don't even assume that the sample of observations is **random**!)
+
+--
+
+* We don't impose any **structure** on our function .blue[f]
+
+* Least-squares regression:  .blue[f] = `\(\beta_0 + \beta X + \epsilon\)` for *any* X.
+
+* KNN: .blue[f] = average of 5 closest `\(x_i\)`'s *that we observed*
+
+---
+# KNN
+
+Recall:  
+
+* **regression** is when we are trying to predict a **numeric** response
+
+* **classification** is when we are trying to predict a **categorical** response
+
+--
+
+*K Nearest Neighbors* can be used for both!
+
+(but we'll focus on regression for now)
+
+---
+class: center, middle, inverse
+
+
+## Example
+
+---
+
+# Example
+
+Recall from Assignment 1:
+
+
+```r
+ins &lt;- read_csv("https://www.dropbox.com/s/bocjjyo1ehr5auz/insurance.csv?dl=1")
+head(ins)
+```
+
+```
+## # A tibble: 6 x 6
+##     age sex      bmi smoker region    charges
+##   &lt;dbl&gt; &lt;chr&gt;  &lt;dbl&gt; &lt;chr&gt;  &lt;chr&gt;       &lt;dbl&gt;
+## 1    19 female  27.9 yes    southwest  16885.
+## 2    33 male    22.7 no     northwest  21984.
+## 3    32 male    28.9 no     northwest   3867.
+## 4    31 female  25.7 no     southeast   3757.
+## 5    60 female  25.8 no     northwest  28923.
+## 6    25 male    26.2 no     northeast   2721.
+```
+
+---
+# Example
+
+Establish our model:
+
+
+```r
+knn_mod &lt;- nearest_neighbor(neighbors = 5) %&gt;%
+  set_engine("kknn") %&gt;%
+  set_mode("regression")
+```
+
+--
+
+Notice:
+
+* New *engine* - just take it from here: https://www.tidymodels.org/find/parsnip/.  
+
+(You will have to `install.packages("knn")` if you are on your home computer.)
+
+--
+
+* *mode* now matters a lot - "classification" would be possible too!
+
+--
+
+* New *model function* `nearest_neighbor`, which requires an **input**, `neighbors`
+
+---
+# Example
+
+Fit our model:
+
+
+```r
+knn_fit_1 &lt;- knn_mod %&gt;%
+  fit(charges ~ age, data = ins)
+
+knn_fit_1$fit %&gt;% summary()
+```
+
+```
+## 
+## Call:
+## kknn::train.kknn(formula = charges ~ age, data = data, ks = ~5)
+## 
+## Type of response variable: continuous
+## minimal mean absolute error: 8370.425
+## Minimal mean squared error: 128968111
+## Best kernel: optimal
+## Best k: 5
+```
+
+---
+
+class: center, middle, inverse
+
+# Choosing **K**
+
+---
+# Check your intuition:
+
+1.  What happens if we use **K = 1**?
+
+--
+
+*Not necessarily bad, but we could be thrown off by weird outlier observations!*
+
+--
+
+2. What happens if we use **K = (number of observations)**
+
+--
+
+*We predict the same y-value no matter what!*
+
+---
+class: center, middle, inverse
+
+# Try it!
+
+## Open **Activity-KNN-r.Rmd** or equivalent
+#### Use cross validation to choose between a KNN model with 5 neighbors that uses only *age* versus one that uses both *age* and *bmi*.
+#### How do these models compare to the *least-squares regression* approach from Tuesday?
+#### How do these models compare to a KNN model with 10 neighbors?
+
+---
+class: center, middle, inverse
+
+# Dummy variables
+
+---
+# Dummy variables
+
+Suppose we now want to include `region` in our KNN model.
+
+--
+
+
+
+```r
+knn_fit_2 &lt;- knn_mod %&gt;%
+  fit(charges ~ age + smoker, data = ins)
+```
+
+---
+# Dummy variables
+
+We can't calculate a **distance** between **categories**!
+
+--
+
+Instead, we make **dummy variables**:
+
+* `southwest` = 1 if southwest, 0 if not
+* `northwest` = 1 if northwest, 0 if not
+* ... etc
+
+--
+
+Now these are (sort of) **numeric** variables.
+
+---
+# Recipes
+
+Instead of manually changing the whole dataset, we can "teach" our model workflow what it needs to do to the data.
+
+--
+
+
+```r
+ins_rec &lt;- recipe(charges ~ age + region, data = ins) %&gt;%
+  step_dummy(region)
+
+ins_rec
+```
+
+```
+## Data Recipe
+## 
+## Inputs:
+## 
+##       role #variables
+##    outcome          1
+##  predictor          2
+## 
+## Operations:
+## 
+## Dummy variables from region
+```
+
+---
+# Workflows
+
+Now, we can combine our **recipe** (data processing instructions) and our **model choice** into a **workflow**:
+
+--
+
+
+```r
+ins_wflow &lt;- workflow() %&gt;%
+  add_recipe(ins_rec) %&gt;%
+  add_model(knn_mod)
+
+ins_wflow
+```
+
+```
+## == Workflow ====================================================================
+## Preprocessor: Recipe
+## Model: nearest_neighbor()
+## 
+## -- Preprocessor ----------------------------------------------------------------
+## 1 Recipe Step
+## 
+## * step_dummy()
+## 
+## -- Model -----------------------------------------------------------------------
+## K-Nearest Neighbor Model Specification (regression)
+## 
+## Main Arguments:
+##   neighbors = 5
+## 
+## Computational engine: kknn
+```
+
+---
+# Workflow
+
+
+```r
+ins_fit &lt;- ins_wflow %&gt;% fit(ins) 
+
+ins_fit %&gt;% pull_workflow_fit()
+```
+
+```
+## parsnip model object
+## 
+## Fit time:  20ms 
+## 
+## Call:
+## kknn::train.kknn(formula = ..y ~ ., data = data, ks = ~5)
+## 
+## Type of response variable: continuous
+## minimal mean absolute error: 7585.732
+## Minimal mean squared error: 120283530
+## Best kernel: optimal
+## Best k: 5
+```
+
+---
+# Compare
+
+
+```r
+knn_fit_1$fit %&gt;% summary()
+```
+
+```
+## 
+## Call:
+## kknn::train.kknn(formula = charges ~ age, data = data, ks = ~5)
+## 
+## Type of response variable: continuous
+## minimal mean absolute error: 8370.425
+## Minimal mean squared error: 128968111
+## Best kernel: optimal
+## Best k: 5
+```
+
+---
+class: center, middle
+
+## Think about it:
+
+### We didn't get much benefit from adding *region*.
+### But *region* **does** matter to the response variable!
+### Why?
+
+---
+class: center, middle, inverse
+
+# Standardizing
+
+---
+# Standardizing
+
+* What is the **largest** and **smallest** value of a *dummy variable*?
+
+--
+
+* What is the **largest** and **smallest** value of *age*?
+
+--
+
+
+```r
+summary(ins$age)
+```
+
+```
+##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##   18.00   22.00   34.00   37.96   55.00   64.00
+```
+---
+# Standardizing
+
+* What is the distance between:
+
+    + Person A:  20 years old, from the southwest
+    + Person B:  20 years old, from the northeast
+    
+--
+
+$$ \sqrt{ (20-20)^2 + (1-0)^2 + (1-0)^2 } = 1.41 $$
+
+--
+
+* What is the distance between:
+
+    + Person A: 20 years old, from the southwest
+    + Person B: 23 years old, from the southwest
+    
+--
+
+$$ \sqrt{ (20-23)^2 + (0-0)^2 + (0-0)^2 } = 3 $$
+---
+# Normalizing
+
+Let's put `age` on a scale that is comparable to the dummy variables.
+
+--
+
+How about: mean of 0, standard deviation of 1
+
+(i.e., a z-score)
+
+--
+
+This is called **normalizing** a variable.
+
+---
+# Normalizing
+
+Add it to the workflow!
+
+
+```r
+ins_rec &lt;- recipe(charges ~ age + region, data = ins) %&gt;%
+  step_dummy(region) %&gt;%
+  step_normalize(age)
+
+ins_wflow &lt;- workflow() %&gt;%
+  add_recipe(ins_rec) %&gt;%
+  add_model(knn_mod)
+
+ins_wflow
+```
+
+```
+## == Workflow ====================================================================
+## Preprocessor: Recipe
+## Model: nearest_neighbor()
+## 
+## -- Preprocessor ----------------------------------------------------------------
+## 2 Recipe Steps
+## 
+## * step_dummy()
+## * step_normalize()
+## 
+## -- Model -----------------------------------------------------------------------
+## K-Nearest Neighbor Model Specification (regression)
+## 
+## Main Arguments:
+##   neighbors = 5
+## 
+## Computational engine: kknn
+```
+
+---
+# Normalizing
+
+
+
+```r
+ins_fit &lt;- ins_wflow %&gt;% fit(ins) 
+
+ins_fit %&gt;% pull_workflow_fit()
+```
+
+```
+## parsnip model object
+## 
+## Fit time:  0ms 
+## 
+## Call:
+## kknn::train.kknn(formula = ..y ~ ., data = data, ks = ~5)
+## 
+## Type of response variable: continuous
+## minimal mean absolute error: 7508.632
+## Minimal mean squared error: 118115709
+## Best kernel: optimal
+## Best k: 5
+```
+
+---
+class: center, middle, inverse
+
+# Try it!
+
+## Open *Activity-KNN-r.Rmd* again
+## Make a KNN model with K = 5, using *age*, *bmi*, *smoker*, and *sex*
+## Compare the model with non-normalized variables to one with normalized variables.  Which is better?
+
+---
+class: center, middle, inverse
+
+# Tuning
+
+## How do we choose K?
+
+---
+
+# Tuning
+
+**K** is what is called a **tuning parameter**.
+
+--
+
+This is a feature of a model that we have to chose *before* fitting the model.
+
+--
+
+Ideally, we'd try many values of the **tuning parameter** and find the best one.
+
+---
+
+![](https://media0.giphy.com/media/SvL7LA1cCAW9ximYN4/giphy.gif)
+
+---
+
+![](https://media0.giphy.com/media/l2YWwkJJj5wkh4P5e/giphy.gif)
+
+---
+# Automatic tuning
+
+
+
+
+&lt;code class ='r hljs remark-code'&gt;knn_mod &lt;- nearest_neighbor(&lt;span style="background-color:pink"&gt;neighbors&lt;/span&gt; = &lt;span style="background-color:#ffff7f"&gt;tune()&lt;/span&gt;) %&gt;%&lt;br&gt;&amp;nbsp;&amp;nbsp;set_engine("kknn") %&gt;%&lt;br&gt;&amp;nbsp;&amp;nbsp;set_mode("regression")&lt;br&gt;&lt;br&gt;k_grid &lt;- grid_regular(&lt;span style="background-color:pink"&gt;neighbors&lt;/span&gt;())&lt;br&gt;&lt;br&gt;k_grid&lt;/code&gt;
+
+```
+
+## # A tibble: 3 x 1
+##   neighbors
+##       &lt;int&gt;
+## 1         1
+## 2         5
+## 3        10
+
+```
+
+---
+# Automatic tuning
+
+
+
+
+&lt;code class ='r hljs remark-code'&gt;knn_mod_tune &lt;- nearest_neighbor(&lt;span style="background-color:pink"&gt;neighbors&lt;/span&gt; = &lt;span style="background-color:#ffff7f"&gt;tune()&lt;/span&gt;) %&gt;%&lt;br&gt;&amp;nbsp;&amp;nbsp;set_engine("kknn") %&gt;%&lt;br&gt;&amp;nbsp;&amp;nbsp;set_mode("regression")&lt;br&gt;&lt;br&gt;k_grid &lt;- grid_regular(&lt;span style="background-color:pink"&gt;neighbors&lt;/span&gt;(c(1,50)), &lt;br&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;levels = 25)&lt;br&gt;&lt;br&gt;k_grid&lt;/code&gt;
+
+```
+
+## # A tibble: 25 x 1
+##    neighbors
+##        &lt;int&gt;
+##  1         1
+##  2         3
+##  3         5
+##  4         7
+##  5         9
+##  6        11
+##  7        13
+##  8        15
+##  9        17
+## 10        19
+## # ... with 15 more rows
+
+```
+
+---
+# Tuning
+
+
+```r
+ins_rec &lt;- recipe(charges ~ age + bmi + sex + smoker, data = ins) %&gt;%
+  step_dummy(all_nominal()) %&gt;%
+  step_normalize(all_numeric())
+
+ins_wflow &lt;- workflow() %&gt;%
+  add_recipe(ins_rec) %&gt;%
+  add_model(knn_mod_tune)
+```
+
+
+
+```r
+ins_cv &lt;- vfold_cv(ins, v = 10)
+
+
+knn_grid_search &lt;-
+  tune_grid(
+    ins_wflow,
+    resamples = ins_cv,
+    grid = k_grid
+  )
+```
+
+---
+# Tuning
+
+
+
+```r
+knn_grid_search
+```
+
+```
+## # Tuning results
+## # 10-fold cross-validation 
+## # A tibble: 10 x 4
+##    splits            id     .metrics              .notes              
+##    &lt;list&gt;            &lt;chr&gt;  &lt;list&gt;                &lt;list&gt;              
+##  1 &lt;rsplit [387/44]&gt; Fold01 &lt;tibble[,5] [50 x 5]&gt; &lt;tibble[,1] [0 x 1]&gt;
+##  2 &lt;rsplit [388/43]&gt; Fold02 &lt;tibble[,5] [50 x 5]&gt; &lt;tibble[,1] [0 x 1]&gt;
+##  3 &lt;rsplit [388/43]&gt; Fold03 &lt;tibble[,5] [50 x 5]&gt; &lt;tibble[,1] [0 x 1]&gt;
+##  4 &lt;rsplit [388/43]&gt; Fold04 &lt;tibble[,5] [50 x 5]&gt; &lt;tibble[,1] [0 x 1]&gt;
+##  5 &lt;rsplit [388/43]&gt; Fold05 &lt;tibble[,5] [50 x 5]&gt; &lt;tibble[,1] [0 x 1]&gt;
+##  6 &lt;rsplit [388/43]&gt; Fold06 &lt;tibble[,5] [50 x 5]&gt; &lt;tibble[,1] [0 x 1]&gt;
+##  7 &lt;rsplit [388/43]&gt; Fold07 &lt;tibble[,5] [50 x 5]&gt; &lt;tibble[,1] [0 x 1]&gt;
+##  8 &lt;rsplit [388/43]&gt; Fold08 &lt;tibble[,5] [50 x 5]&gt; &lt;tibble[,1] [0 x 1]&gt;
+##  9 &lt;rsplit [388/43]&gt; Fold09 &lt;tibble[,5] [50 x 5]&gt; &lt;tibble[,1] [0 x 1]&gt;
+## 10 &lt;rsplit [388/43]&gt; Fold10 &lt;tibble[,5] [50 x 5]&gt; &lt;tibble[,1] [0 x 1]&gt;
+```
+
+---
+# Tuning
+
+
+```r
+knn_grid_search %&gt;% collect_metrics()
+```
+
+```
+## # A tibble: 50 x 7
+##    neighbors .metric .estimator  mean     n std_err .config
+##        &lt;int&gt; &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt; &lt;chr&gt;  
+##  1         1 rmse    standard   0.516    10  0.0510 Model01
+##  2         1 rsq     standard   0.749    10  0.0322 Model01
+##  3         3 rmse    standard   0.434    10  0.0379 Model02
+##  4         3 rsq     standard   0.812    10  0.0215 Model02
+##  5         5 rmse    standard   0.406    10  0.0346 Model03
+##  6         5 rsq     standard   0.833    10  0.0196 Model03
+##  7         7 rmse    standard   0.394    10  0.0329 Model04
+##  8         7 rsq     standard   0.843    10  0.0187 Model04
+##  9         9 rmse    standard   0.386    10  0.0316 Model05
+## 10         9 rsq     standard   0.849    10  0.0178 Model05
+## # ... with 40 more rows
+```
+
+---
+# Tuning
+
+![](K-Nearest-Neighbors_files/figure-html/unnamed-chunk-19-1.png)&lt;!-- --&gt;
+
+---
+#Tuning
+
+What if we had only looked at k from 1 to 10?
+
+![](K-Nearest-Neighbors_files/figure-html/unnamed-chunk-20-1.png)&lt;!-- --&gt;
+
+---
+#Tuning
+
+What if we had only looked at k from 20 to 50?
+
+![](K-Nearest-Neighbors_files/figure-html/unnamed-chunk-21-1.png)&lt;!-- --&gt;
+
+
+---
+# Tuning
+
+
+```r
+knn_grid_search %&gt;% 
+  collect_metrics() %&gt;%
+  filter(.metric == "rmse") %&gt;%
+  slice_min(mean)
+```
+
+```
+## # A tibble: 1 x 7
+##   neighbors .metric .estimator  mean     n std_err .config
+##       &lt;int&gt; &lt;chr&gt;   &lt;chr&gt;      &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt; &lt;chr&gt;  
+## 1        15 rmse    standard   0.379    10  0.0292 Model08
+```
+
+---
+
+class: center, middle, inverse
+
+# Try it!
+
+## Open *Activity-KNN-r.Rmd* again
+## Decide on a best final KNN model to predict insurance charges
+## Plot the residuals from this model
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightLines": true,
+"highlightStyle": "github",
+"countIncrementalSlides": false,
+"ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

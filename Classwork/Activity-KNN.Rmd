@@ -1,0 +1,157 @@
+---
+title: "K Nearest Neighbors Regression"
+author: "YOUR NAME HERE"
+output: html_document
+---
+
+```{r, include = FALSE}
+templar::versions_multilingual()
+```
+
+
+```{r libraries, include=FALSE}
+library(tidyverse)
+library(tidymodels)
+library(flair)
+library(kknn)
+```
+
+
+```{r, message = FALSE}
+ins <- read_csv("https://www.dropbox.com/s/bocjjyo1ehr5auz/insurance.csv?dl=1")
+head(ins)
+```
+
+## Activity Break 1: KNN modeling
+
+Establish our model:
+
+```{r}
+knn_mod <- nearest_neighbor(neighbors = 5) %>%
+  set_engine("kknn") %>%
+  set_mode("regression")
+```
+
+Fit our model:
+
+```{r}
+knn_fit_1 <- knn_mod %>%
+  fit(charges ~ age, data = ins)
+
+knn_fit_1$fit %>% summary()
+```
+
+Recipe:
+
+```{r}
+ins_rec <- recipe(charges ~ age + region, data = ins) %>%
+  step_dummy(region)
+
+ins_rec
+```
+Workflow:
+
+```{r}
+ins_wflow <- workflow() %>%
+  add_recipe(ins_rec) %>%
+  add_model(knn_mod)
+
+ins_fit <- ins_wflow %>% fit(ins) 
+
+ins_fit %>% pull_workflow_fit()
+```
+
+## Activity Break 2:  Normalizing variables
+
+Normalize workflow:
+
+```{r}
+ins_rec <- recipe(charges ~ age + region, data = ins) %>%
+  step_dummy(region) %>%
+  step_normalize(age)
+
+ins_wflow <- workflow() %>%
+  add_recipe(ins_rec) %>%
+  add_model(knn_mod)
+
+ins_wflow
+```
+
+Fit:
+
+
+```{r}
+ins_fit <- ins_wflow %>% fit(ins) 
+
+ins_fit %>% pull_workflow_fit()
+```
+
+## Activity Break 3:  Tuning
+
+Tuning:
+
+
+```{r}
+knn_mod_tune <- nearest_neighbor(neighbors = tune()) %>%
+  set_engine("kknn") %>%
+  set_mode("regression")
+
+k_grid <- grid_regular(neighbors(c(1,50)), 
+                       levels = 25)
+
+k_grid
+```
+
+```{r}
+ins_rec <- recipe(charges ~ age + bmi + sex + smoker, data = ins) %>%
+  step_dummy(all_nominal()) %>%
+  step_normalize(all_numeric())
+
+ins_wflow <- workflow() %>%
+  add_recipe(ins_rec) %>%
+  add_model(knn_mod_tune)
+```
+
+
+```{r}
+ins_cv <- vfold_cv(ins, v = 10)
+
+
+knn_grid_search <-
+  tune_grid(
+    ins_wflow,
+    resamples = ins_cv,
+    grid = k_grid
+  )
+```
+
+
+```{r}
+knn_grid_search %>% collect_metrics()
+```
+
+```{r}
+knn_grid_search %>% 
+  collect_metrics() %>%
+  ggplot(aes(x = neighbors, y = mean, color = .metric)) +
+  geom_line()
+```
+
+
+```{r}
+knn_grid_search %>% 
+  collect_metrics() %>%
+  filter(.metric == "rmse") %>%
+  slice_min(mean)
+```
+
+---
+
+class: center, middle, inverse
+
+# Try it!
+
+## Open `Activity-KNN-r.Rmd` again
+## Decide on a best final KNN model to predict insurance charges
+## Plot the residuals from this model
+
