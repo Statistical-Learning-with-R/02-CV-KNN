@@ -1,26 +1,35 @@
 ---
-title: "K Nearest Neighbors Regression"
+title: "K Nearest Neighbors"
 author: "YOUR NAME HERE"
-output: html_document
+format: 
+  html:
+    code-fold: true
+    code-line-numbers: true
+    code-tools: true
+    self-contained: true
+editor: visual
+execute:
+  message: false
 ---
 
-```{r, include = FALSE}
-templar::versions_multilingual()
-```
+## Setup
 
+Declare your libraries:
 
-```{r libraries, include=FALSE}
+```{r}
+#| label: libraries-r
+#| include: false
 library(tidyverse)
 library(tidymodels)
-library(flair)
 library(kknn)
 ```
 
 
-```{r, message = FALSE}
+```{r}
 ins <- read_csv("https://www.dropbox.com/s/bocjjyo1ehr5auz/insurance.csv?dl=1")
 head(ins)
 ```
+
 
 ## Activity Break 1: KNN modeling
 
@@ -34,6 +43,7 @@ knn_mod <- nearest_neighbor(neighbors = 5) %>%
   set_mode("regression")
 ```
 
+
 Fit our model:
 
 ```{r}
@@ -42,6 +52,7 @@ knn_fit_1 <- knn_mod %>%
 
 knn_fit_1$fit %>% summary()
 ```
+
 
 #### Your task:
 
@@ -53,7 +64,6 @@ How do these models compare to a KNN model with 10 neighbors?
 
 ## Activity Break 2:  Normalizing variables
 
-
 #### Code from lecture
 
 Recipe:
@@ -64,6 +74,8 @@ ins_rec <- recipe(charges ~ age + region, data = ins) %>%
 
 ins_rec
 ```
+
+
 Workflow:
 
 ```{r}
@@ -91,6 +103,7 @@ ins_wflow <- workflow() %>%
 ins_wflow
 ```
 
+
 Fit:
 
 ```{r}
@@ -99,31 +112,33 @@ ins_fit <- ins_wflow %>% fit(ins)
 ins_fit %>% pull_workflow_fit()
 ```
 
+
 #### Your task: 
 
 Make a KNN model with K = 5, using age, bmi, smoker, and sex
 Compare the model with non-normalized variables to one with normalized variables. Which is better?
 
-
-
 ## Activity Break 3:  Tuning
 
 #### Code from lecture
 
-Tuning:
+Set values to try:
+
+```{r}
+k_grid <- grid_regular(neighbors(c(1,50)), 
+                       levels = 25)
+k_grid
+
+```
+
+
+Make workflow:
 
 ```{r}
 knn_mod_tune <- nearest_neighbor(neighbors = tune()) %>%
   set_engine("kknn") %>%
   set_mode("regression")
 
-k_grid <- grid_regular(neighbors(c(1,50)), 
-                       levels = 25)
-
-k_grid
-```
-
-```{r}
 ins_rec <- recipe(charges ~ age + bmi + sex + smoker, data = ins) %>%
   step_dummy(all_nominal()) %>%
   step_normalize(all_numeric())
@@ -132,6 +147,10 @@ ins_wflow <- workflow() %>%
   add_recipe(ins_rec) %>%
   add_model(knn_mod_tune)
 ```
+
+
+Fit cross-validations for all values of k:
+
 
 ```{r}
 ins_cv <- vfold_cv(ins, v = 10)
@@ -151,15 +170,15 @@ knn_grid_search %>% collect_metrics()
 ```{r}
 knn_grid_search %>% 
   collect_metrics() %>%
-  ggplot(aes(x = neighbors, y = mean, color = .metric)) +
-  geom_line()
+  filter(.metric == "rmse") %>%
+  slice_min(mean)
 ```
 
 ```{r}
 knn_grid_search %>% 
   collect_metrics() %>%
-  filter(.metric == "rmse") %>%
-  slice_min(mean)
+  ggplot(aes(x = neighbors, y = mean, color = .metric)) +
+  geom_line()
 ```
 
 #### Your task:  

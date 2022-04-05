@@ -1,73 +1,80 @@
 ---
-title: "Test and Training Data"
+title: "Cross-Validation"
 author: "YOUR NAME HERE"
-output: html_document
+format: 
+  html:
+    code-fold: true
+    code-line-numbers: true
+    code-tools: true
+    self-contained: true
+editor: visual
+execute:
+  message: false
 ---
 
-```{r, version = "none"}
-templar::versions_multilingual(to_jupyter = TRUE)
+```{r, eval = TRUE, version = "none"}
+templar::versions_quarto_multilingual(global_eval = FALSE, to_jupyter = TRUE, warn_edit = FALSE)
 ```
 
+## Setup
 
-```{r, include = FALSE}
+Declare your libraries:
+
+```{r, version = "R"}
+#| label: libraries-r
+#| include: false
 library(tidyverse)
 library(tidymodels)
 ```
 
-```{r, include = FALSE, version = "python"}
-library(reticulate)
-## You may need the code below if you are working on your home Windows computer:
-py_run_string("import os as os")
-py_run_string("os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = 'C:/Users/kbodwin/Anaconda3/Library/plugins/platforms'")
-```
-
-```{python, include = FALSE}
+```{python, version = "python"}
+#| label: libraries-py
+#| include: false
 import pandas as pd
-from matplotlib import pyplot as plt
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+from sklearn.model_selection import cross_val_score, GridSearchCV, KFold
+from sklearn.preprocessing import PolynomialFeatures
 ```
 
 ## Code from slides
 
-```{r, message = FALSE}
+```{r, version = "R"}
 ins <- read_csv("https://www.dropbox.com/s/bocjjyo1ehr5auz/insurance_costs_1.csv?dl=1")
 head(ins)
 ```
 
-```{r}
+```{r, version = "R"}
 lr_mod <- linear_reg() %>%
   set_mode("regression") %>%
   set_engine("lm")
 ```
 
 
-```{python}
+```{python, version = "python"}
 ins = pd.read_csv("https://www.dropbox.com/s/bocjjyo1ehr5auz/insurance_costs_1.csv?dl=1")
 ins.head()
 ```
 
-```{python}
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import KFold
-
+```{python, version = "python"}
 lm = LinearRegression()
 
 poly = PolynomialFeatures(degree=20)
 x_dat = ins["bmi"].values.reshape(-1,1)
 x_dat_20 = poly.fit_transform(x_dat)
 
-poly_mod_1 = lm.fit(x_dat, y = ins[["charges"]])
-poly_mod_20 = lm.fit(x_dat_20, y = ins[["charges"]])
+poly_mod_1 = lm.fit(x_dat, y = ins["charges"])
+
+poly_mod_20 = lm.fit(x_dat_20, y = ins["charges"])
 ```
 
-```{python}
+```{python, version = "python"}
 cross_validation = KFold(n_splits=10)
 
-scores_1 = cross_val_score(poly_mod_1, x_dat, ins[["charges"]], scoring="neg_mean_squared_error", cv=cross_validation)
+scores_1 = cross_val_score(poly_mod_1, x_dat, ins["charges"], scoring="neg_mean_squared_error", cv=cross_validation)
 
-scores_20 = cross_val_score(poly_mod_20, x_dat_20, ins[["charges"]], scoring="neg_mean_squared_error", cv=cross_validation)
+scores_20 = cross_val_score(poly_mod_20, x_dat_20, ins["charges"], scoring="neg_mean_squared_error", cv=cross_validation)
 
 scores_1.mean()
 scores_20.mean()
@@ -75,7 +82,7 @@ scores_20.mean()
 
 
 
-```{r}
+```{r, version = "R"}
 ins_cvs <- vfold_cv(ins, v = 10)
 
 poly_1_cv <- lr_mod %>%
@@ -87,7 +94,7 @@ poly_2_cv <- lr_mod %>%
                 resamples = ins_cvs)
 ```
 
-```{r}
+```{r, version = "R"}
 poly_1_cv %>% collect_metrics()
 
 poly_2_cv %>% collect_metrics()

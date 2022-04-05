@@ -1,0 +1,291 @@
+---
+title: "K Nearest Neighbors"
+author: "YOUR NAME HERE"
+format: 
+  html:
+    code-fold: true
+    code-line-numbers: true
+    code-tools: true
+    self-contained: true
+editor: visual
+execute:
+  message: false
+---
+
+```{r, eval = TRUE, version = "none"}
+templar::versions_quarto_multilingual(global_eval = TRUE, to_jupyter = TRUE, warn_edit = FALSE)
+```
+
+## Setup
+
+Declare your libraries:
+
+```{r, version = "R"}
+#| label: libraries-r
+#| include: false
+library(tidyverse)
+library(tidymodels)
+library(kknn)
+```
+
+```{python, version = "python"}
+#| label: libraries-py
+#| include: false
+import pandas as pd
+from sklearn.pipeline import Pipeline, make_pipeline
+from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.metrics import r2_score
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.compose import make_column_transformer
+from sklearn.model_selection import cross_val_score, GridSearchCV, KFold
+```
+
+
+
+```{r, version = "R"}
+ins <- read_csv("https://www.dropbox.com/s/bocjjyo1ehr5auz/insurance.csv?dl=1")
+head(ins)
+```
+
+```{python, version = "python"}
+ins = pd.read_csv("https://www.dropbox.com/s/bocjjyo1ehr5auz/insurance.csv?dl=1")
+ins.head()
+```
+
+## Activity Break 1: KNN modeling
+
+#### Code from lecture
+
+Establish our model:
+
+```{r, version = "R"}
+knn_mod <- nearest_neighbor(neighbors = 5) %>%
+  set_engine("kknn") %>%
+  set_mode("regression")
+```
+
+```{python, version = "python"}
+model = KNeighborsRegressor(n_neighbors=5)
+```
+
+
+Fit our model:
+
+```{r, version = "R"}
+knn_fit_1 <- knn_mod %>%
+  fit(charges ~ age, data = ins)
+
+knn_fit_1$fit %>% summary()
+```
+
+```{python, version = "python"}
+model.fit(X = ins[["age"]], y = ins["charges"])
+```
+
+
+#### Your task:
+
+Use cross validation to choose between a KNN model with 5 neighbors that uses only age versus one that uses both age and bmi.
+
+How do these models compare to the least-squares regression approach from Tuesday?
+
+How do these models compare to a KNN model with 10 neighbors?
+
+## Activity Break 2:  Normalizing variables
+
+
+#### Code from lecture
+
+Recipe:
+
+```{r, version = "R"}
+ins_rec <- recipe(charges ~ age + region, data = ins) %>%
+  step_dummy(region)
+
+ins_rec
+```
+
+```{python, version = "python"}
+ct = make_column_transformer(
+    (OneHotEncoder(), ["region"]),
+    remainder="drop"  # all other columns in X will be dropped.
+)
+
+ct
+```
+
+
+Workflow:
+
+```{r, version = "R"}
+ins_wflow <- workflow() %>%
+  add_recipe(ins_rec) %>%
+  add_model(knn_mod)
+
+ins_fit <- ins_wflow %>% fit(ins) 
+
+ins_fit %>% pull_workflow_fit()
+```
+
+
+```{python, version = "python"}
+pipeline = make_pipeline(
+    ct,
+    KNeighborsRegressor(n_neighbors=5)
+)
+```
+
+
+Normalize workflow:
+
+```{r, version = "R"}
+ins_rec <- recipe(charges ~ age + region, data = ins) %>%
+  step_dummy(region) %>%
+  step_normalize(age)
+
+ins_wflow <- workflow() %>%
+  add_recipe(ins_rec) %>%
+  add_model(knn_mod)
+
+ins_wflow
+```
+
+```{python, version = "python"}
+ct = make_column_transformer(
+    (OneHotEncoder(), ["region"]),
+    (StandardScaler(), ["age"]),
+    remainder="drop"  # all other columns in X will be dropped.
+)
+
+pipeline = make_pipeline(
+    ct,
+    KNeighborsRegressor(n_neighbors=5)
+)
+
+pipeline
+```
+
+
+Fit:
+
+```{r, version = "R"}
+ins_fit <- ins_wflow %>% fit(ins) 
+
+ins_fit %>% pull_workflow_fit()
+```
+
+
+```{python, version = "python"}
+pipeline.fit(X = ins[["age", "region"]], y = ins["charges"])
+```
+
+
+#### Your task: 
+
+Make a KNN model with K = 5, using age, bmi, smoker, and sex
+Compare the model with non-normalized variables to one with normalized variables. Which is better?
+
+
+
+## Activity Break 3:  Tuning
+
+#### Code from lecture
+
+Set values to try:
+
+```{r, version = "R"}
+k_grid <- grid_regular(neighbors(c(1,50)), 
+                       levels = 25)
+k_grid
+
+```
+
+```{python, version = "python"}
+k_grid = {"kneighborsregressor__n_neighbors": range(1, 50)}
+
+k_grid
+```
+
+Make workflow:
+
+```{r, version = "R"}
+knn_mod_tune <- nearest_neighbor(neighbors = tune()) %>%
+  set_engine("kknn") %>%
+  set_mode("regression")
+
+ins_rec <- recipe(charges ~ age + bmi + sex + smoker, data = ins) %>%
+  step_dummy(all_nominal()) %>%
+  step_normalize(all_numeric())
+
+ins_wflow <- workflow() %>%
+  add_recipe(ins_rec) %>%
+  add_model(knn_mod_tune)
+```
+
+
+```{python, version = "python"}
+ct = make_column_transformer(
+    (OneHotEncoder(), ["region"]),
+    (StandardScaler(), ["age"]),
+    remainder="drop"  # all other columns in X will be dropped.
+)
+
+pipeline = make_pipeline(
+    ct,
+    KNeighborsRegressor(n_neighbors=5)
+)
+
+```
+
+Fit cross-validations for all values of k:
+
+
+```{python, version = "python"}
+grid_search = GridSearchCV(pipeline,
+                           param_grid=k_grid,
+                           scoring="neg_mean_squared_error",
+                           cv=10)
+                           
+grid_search.fit(ins[["age", "region"]], ins["charges"])
+
+grid_search.best_estimator_
+```
+
+
+```{r, version = "R"}
+ins_cv <- vfold_cv(ins, v = 10)
+
+knn_grid_search <-
+  tune_grid(
+    ins_wflow,
+    resamples = ins_cv,
+    grid = k_grid
+  )
+```
+
+```{r, version = "R"}
+knn_grid_search %>% collect_metrics()
+```
+
+
+```{r, version = "R"}
+knn_grid_search %>% 
+  collect_metrics() %>%
+  filter(.metric == "rmse") %>%
+  slice_min(mean)
+```
+
+
+```{r, version = "R"}
+knn_grid_search %>% 
+  collect_metrics() %>%
+  ggplot(aes(x = neighbors, y = mean, color = .metric)) +
+  geom_line()
+```
+
+
+#### Your task:  
+
+Find the best KNN model
+

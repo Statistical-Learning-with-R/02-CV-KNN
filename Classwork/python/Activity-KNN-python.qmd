@@ -1,0 +1,156 @@
+---
+title: "K Nearest Neighbors"
+author: "YOUR NAME HERE"
+format: 
+  html:
+    code-fold: true
+    code-line-numbers: true
+    code-tools: true
+    self-contained: true
+editor: visual
+execute:
+  message: false
+jupyter: python3
+---
+
+## Setup
+
+Declare your libraries:
+
+```{python}
+#| label: libraries-py
+#| include: false
+import pandas as pd
+from sklearn.pipeline import Pipeline, make_pipeline
+from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.metrics import r2_score
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.compose import make_column_transformer
+from sklearn.model_selection import cross_val_score, GridSearchCV, KFold
+```
+
+```{python}
+ins = pd.read_csv("https://www.dropbox.com/s/bocjjyo1ehr5auz/insurance.csv?dl=1")
+ins.head()
+```
+
+## Activity Break 1: KNN modeling
+
+#### Code from lecture
+
+Establish our model:
+
+```{python}
+model = KNeighborsRegressor(n_neighbors=5)
+```
+
+Fit our model:
+
+```{python}
+model.fit(X = ins[["age"]], y = ins["charges"])
+```
+
+#### Your task:
+
+Use cross validation to choose between a KNN model with 5 neighbors that uses only age versus one that uses both age and bmi.
+
+How do these models compare to the least-squares regression approach from Tuesday?
+
+How do these models compare to a KNN model with 10 neighbors?
+
+## Activity Break 2: Normalizing variables
+
+#### Code from lecture
+
+Recipe:
+
+```{python}
+ct = make_column_transformer(
+    (OneHotEncoder(), ["region"]),
+    remainder="drop"  # all other columns in X will be dropped.
+)
+
+ct
+```
+
+Workflow:
+
+```{python}
+pipeline = make_pipeline(
+    ct,
+    KNeighborsRegressor(n_neighbors=5)
+)
+```
+
+Normalize workflow:
+
+```{python}
+ct = make_column_transformer(
+    (OneHotEncoder(), ["region"]),
+    (StandardScaler(), ["age"]),
+    remainder="drop"  # all other columns in X will be dropped.
+)
+
+pipeline = make_pipeline(
+    ct,
+    KNeighborsRegressor(n_neighbors=5)
+)
+
+pipeline
+```
+
+Fit:
+
+```{python}
+pipeline.fit(X = ins[["age", "region"]], y = ins["charges"])
+```
+
+#### Your task:
+
+Make a KNN model with K = 5, using age, bmi, smoker, and sex Compare the model with non-normalized variables to one with normalized variables. Which is better?
+
+## Activity Break 3: Tuning
+
+#### Code from lecture
+
+Set values to try:
+
+```{python}
+k_grid = {"kneighborsregressor__n_neighbors": range(1, 50)}
+
+k_grid
+```
+
+Make workflow:
+
+```{python}
+ct = make_column_transformer(
+    (OneHotEncoder(), ["region"]),
+    (StandardScaler(), ["age"]),
+    remainder="drop"  # all other columns in X will be dropped.
+)
+
+pipeline = make_pipeline(
+    ct,
+    KNeighborsRegressor(n_neighbors=5)
+)
+
+```
+
+Fit cross-validations for all values of k:
+
+```{python}
+grid_search = GridSearchCV(pipeline,
+                           param_grid=k_grid,
+                           scoring="neg_mean_squared_error",
+                           cv=10)
+                           
+grid_search.fit(ins[["age", "region"]], ins["charges"])
+
+grid_search.best_estimator_
+```
+
+#### Your task:
+
+Find the best KNN model
