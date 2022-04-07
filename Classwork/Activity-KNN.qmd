@@ -41,8 +41,6 @@ from sklearn.compose import make_column_transformer
 from sklearn.model_selection import cross_val_score, GridSearchCV, KFold
 ```
 
-
-
 ```{r, version = "R"}
 ins <- read_csv("https://www.dropbox.com/s/bocjjyo1ehr5auz/insurance.csv?dl=1")
 head(ins)
@@ -69,7 +67,6 @@ knn_mod <- nearest_neighbor(neighbors = 5) %>%
 model = KNeighborsRegressor(n_neighbors=5)
 ```
 
-
 Fit our model:
 
 ```{r, version = "R"}
@@ -83,7 +80,6 @@ knn_fit_1$fit %>% summary()
 model.fit(X = ins[["age"]], y = ins["charges"])
 ```
 
-
 #### Your task:
 
 Use cross validation to choose between a KNN model with 5 neighbors that uses only age versus one that uses both age and bmi.
@@ -92,8 +88,7 @@ How do these models compare to the least-squares regression approach from Tuesda
 
 How do these models compare to a KNN model with 10 neighbors?
 
-## Activity Break 2:  Normalizing variables
-
+## Activity Break 2: Normalizing variables
 
 #### Code from lecture
 
@@ -115,7 +110,6 @@ ct = make_column_transformer(
 ct
 ```
 
-
 Workflow:
 
 ```{r, version = "R"}
@@ -128,14 +122,12 @@ ins_fit <- ins_wflow %>% fit(ins)
 ins_fit %>% pull_workflow_fit()
 ```
 
-
 ```{python, version = "python"}
 pipeline = make_pipeline(
     ct,
     KNeighborsRegressor(n_neighbors=5)
 )
 ```
-
 
 Normalize workflow:
 
@@ -166,7 +158,6 @@ pipeline = make_pipeline(
 pipeline
 ```
 
-
 Fit:
 
 ```{r, version = "R"}
@@ -175,20 +166,15 @@ ins_fit <- ins_wflow %>% fit(ins)
 ins_fit %>% pull_workflow_fit()
 ```
 
-
 ```{python, version = "python"}
 pipeline.fit(X = ins[["age", "region"]], y = ins["charges"])
 ```
 
+#### Your task:
 
-#### Your task: 
+Make a KNN model with K = 5, using age, bmi, smoker, and sex Compare the model with non-normalized variables to one with normalized variables. Which is better?
 
-Make a KNN model with K = 5, using age, bmi, smoker, and sex
-Compare the model with non-normalized variables to one with normalized variables. Which is better?
-
-
-
-## Activity Break 3:  Tuning
+## Activity Break 3: Tuning
 
 #### Code from lecture
 
@@ -223,7 +209,6 @@ ins_wflow <- workflow() %>%
   add_model(knn_mod_tune)
 ```
 
-
 ```{python, version = "python"}
 ct = make_column_transformer(
     (OneHotEncoder(), ["region"]),
@@ -240,7 +225,6 @@ pipeline = make_pipeline(
 
 Fit cross-validations for all values of k:
 
-
 ```{python, version = "python"}
 grid_search = GridSearchCV(pipeline,
                            param_grid=k_grid,
@@ -251,7 +235,6 @@ grid_search.fit(ins[["age", "region"]], ins["charges"])
 
 grid_search.best_estimator_
 ```
-
 
 ```{r, version = "R"}
 ins_cv <- vfold_cv(ins, v = 10)
@@ -268,14 +251,12 @@ knn_grid_search <-
 knn_grid_search %>% collect_metrics()
 ```
 
-
 ```{r, version = "R"}
 knn_grid_search %>% 
   collect_metrics() %>%
   filter(.metric == "rmse") %>%
   slice_min(mean)
 ```
-
 
 ```{r, version = "R"}
 knn_grid_search %>% 
@@ -284,8 +265,6 @@ knn_grid_search %>%
   geom_line()
 ```
 
-
-#### Your task:  
+#### Your task:
 
 Find the best KNN model
-
